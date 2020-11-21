@@ -49,6 +49,13 @@ module_param_named(debug, hid_debug, int, 0600);
 MODULE_PARM_DESC(debug, "toggle HID debugging messages");
 EXPORT_SYMBOL_GPL(hid_debug);
 
+int hid_touch_debug_mask = BASE_INFO;
+/* Debug mask value
+ * usage: echo [debug_mask] > /sys/module/hid/parameters/debug_mask
+ */
+module_param_named(debug_mask, hid_touch_debug_mask, int, 0664);
+MODULE_PARM_DESC(debug_mask, "Use Touch_HID debug log trace");
+
 static int hid_ignore_special_drivers = 0;
 module_param_named(ignore_special_drivers, hid_ignore_special_drivers, int, 0600);
 MODULE_PARM_DESC(ignore_special_drivers, "Ignore any special drivers and handle all devices by generic driver");
@@ -592,6 +599,8 @@ static void hid_free_report(struct hid_report *report)
 static void hid_close_report(struct hid_device *device)
 {
 	unsigned i, j;
+
+	HID_TOUCH_TRACE();
 
 	for (i = 0; i < HID_REPORT_TYPES; i++) {
 		struct hid_report_enum *report_enum = device->report_enum + i;
@@ -1260,6 +1269,8 @@ static void hid_process_event(struct hid_device *hid, struct hid_field *field,
 	struct hid_driver *hdrv = hid->driver;
 	int ret;
 
+	HID_TOUCH_TRACE();
+
 	if (!list_empty(&hid->debug_list))
 		hid_dump_input(hid, usage, value);
 
@@ -1295,6 +1306,8 @@ static void hid_input_field(struct hid_device *hid, struct hid_field *field,
 	__s32 min = field->logical_minimum;
 	__s32 max = field->logical_maximum;
 	__s32 *value;
+
+	HID_TOUCH_TRACE();
 
 	value = kmalloc(sizeof(__s32) * count, GFP_ATOMIC);
 	if (!value)
@@ -1352,6 +1365,8 @@ static void hid_output_field(const struct hid_device *hid,
 	unsigned size = field->report_size;
 	unsigned n;
 
+	HID_TOUCH_TRACE();
+
 	for (n = 0; n < count; n++) {
 		if (field->logical_minimum < 0)	/* signed values */
 			implement(hid, data, offset + n * size, size,
@@ -1370,6 +1385,8 @@ static void hid_output_field(const struct hid_device *hid,
 void hid_output_report(struct hid_report *report, __u8 *data)
 {
 	unsigned n;
+
+	HID_TOUCH_TRACE();
 
 	if (report->id > 0)
 		*data++ = report->id;
@@ -1406,6 +1423,8 @@ int hid_set_field(struct hid_field *field, unsigned offset, __s32 value)
 {
 	unsigned size;
 
+	HID_TOUCH_TRACE();
+
 	if (!field)
 		return -1;
 
@@ -1435,6 +1454,8 @@ static struct hid_report *hid_get_report(struct hid_report_enum *report_enum,
 	struct hid_report *report;
 	unsigned int n = 0;	/* Normally report number is 0 */
 
+	HID_TOUCH_TRACE();
+
 	/* Device uses numbered reports, data[0] is report number */
 	if (report_enum->numbered)
 		n = *data;
@@ -1456,6 +1477,8 @@ void __hid_request(struct hid_device *hid, struct hid_report *report,
 	char *buf;
 	int ret;
 	u32 len;
+
+	HID_TOUCH_TRACE();
 
 	buf = hid_alloc_report_buf(report, GFP_KERNEL);
 	if (!buf)
@@ -1491,6 +1514,8 @@ int hid_report_raw_event(struct hid_device *hid, int type, u8 *data, u32 size,
 	u32 rsize, csize = size;
 	u8 *cdata = data;
 	int ret = 0;
+
+	HID_TOUCH_TRACE();
 
 	report = hid_get_report(report_enum, data);
 	if (!report)
@@ -1552,6 +1577,8 @@ int hid_input_report(struct hid_device *hid, int type, u8 *data, u32 size, int i
 	struct hid_driver *hdrv;
 	struct hid_report *report;
 	int ret = 0;
+
+	HID_TOUCH_TRACE();
 
 	if (!hid)
 		return -ENODEV;
@@ -1679,6 +1706,8 @@ int hid_connect(struct hid_device *hdev, unsigned int connect_mask)
 	int len;
 	int ret;
 
+	HID_TOUCH_TRACE();
+
 	if (hdev->quirks & HID_QUIRK_HIDDEV_FORCE)
 		connect_mask |= (HID_CONNECT_HIDDEV_FORCE | HID_CONNECT_HIDDEV);
 	if (hdev->quirks & HID_QUIRK_HIDINPUT_FORCE)
@@ -1763,6 +1792,8 @@ EXPORT_SYMBOL_GPL(hid_connect);
 
 void hid_disconnect(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
+
 	device_remove_file(&hdev->dev, &dev_attr_country);
 	if (hdev->claimed & HID_CLAIMED_INPUT)
 		hidinput_disconnect(hdev);
@@ -1786,6 +1817,8 @@ EXPORT_SYMBOL_GPL(hid_disconnect);
 int hid_hw_start(struct hid_device *hdev, unsigned int connect_mask)
 {
 	int error;
+
+	HID_TOUCH_TRACE();
 
 	error = hdev->ll_driver->start(hdev);
 	if (error)
@@ -1812,6 +1845,7 @@ EXPORT_SYMBOL_GPL(hid_hw_start);
  */
 void hid_hw_stop(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
 	hid_disconnect(hdev);
 	hdev->ll_driver->stop(hdev);
 }
@@ -1828,6 +1862,8 @@ EXPORT_SYMBOL_GPL(hid_hw_stop);
 int hid_hw_open(struct hid_device *hdev)
 {
 	int ret;
+
+	HID_TOUCH_TRACE();
 
 	ret = mutex_lock_killable(&hdev->ll_open_lock);
 	if (ret)
@@ -1855,6 +1891,8 @@ EXPORT_SYMBOL_GPL(hid_hw_open);
  */
 void hid_hw_close(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
+
 	mutex_lock(&hdev->ll_open_lock);
 	if (!--hdev->ll_open_count)
 		hdev->ll_driver->close(hdev);
@@ -2497,6 +2535,8 @@ static int hid_device_probe(struct device *dev)
 	const struct hid_device_id *id;
 	int ret = 0;
 
+	HID_TOUCH_TRACE();
+
 	if (down_interruptible(&hdev->driver_input_lock)) {
 		ret = -EINTR;
 		goto end;
@@ -2536,6 +2576,8 @@ static int hid_device_remove(struct device *dev)
 	struct hid_driver *hdrv;
 	int ret = 0;
 
+	HID_TOUCH_TRACE();
+
 	if (down_interruptible(&hdev->driver_input_lock)) {
 		ret = -EINTR;
 		goto end;
@@ -2543,6 +2585,7 @@ static int hid_device_remove(struct device *dev)
 	hdev->io_started = false;
 
 	hdrv = hdev->driver;
+
 	if (hdrv) {
 		if (hdrv->remove)
 			hdrv->remove(hdev);
@@ -2855,6 +2898,8 @@ static const struct hid_device_id hid_mouse_ignore_list[] = {
 
 bool hid_ignore(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
+
 	if (hdev->quirks & HID_QUIRK_NO_IGNORE)
 		return false;
 	if (hdev->quirks & HID_QUIRK_IGNORE)
@@ -2943,6 +2988,8 @@ int hid_add_device(struct hid_device *hdev)
 	static atomic_t id = ATOMIC_INIT(0);
 	int ret;
 
+	HID_TOUCH_TRACE();
+
 	if (WARN_ON(hdev->status & HID_STAT_ADDED))
 		return -EBUSY;
 
@@ -3011,6 +3058,8 @@ struct hid_device *hid_allocate_device(void)
 	struct hid_device *hdev;
 	int ret = -ENOMEM;
 
+	HID_TOUCH_TRACE();
+
 	hdev = kzalloc(sizeof(*hdev), GFP_KERNEL);
 	if (hdev == NULL)
 		return ERR_PTR(ret);
@@ -3034,6 +3083,8 @@ EXPORT_SYMBOL_GPL(hid_allocate_device);
 
 static void hid_remove_device(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
+
 	if (hdev->status & HID_STAT_ADDED) {
 		device_del(&hdev->dev);
 		hid_debug_unregister(hdev);
@@ -3054,6 +3105,7 @@ static void hid_remove_device(struct hid_device *hdev)
  */
 void hid_destroy_device(struct hid_device *hdev)
 {
+	HID_TOUCH_TRACE();
 	hid_remove_device(hdev);
 	put_device(&hdev->dev);
 }
@@ -3067,6 +3119,8 @@ int __hid_register_driver(struct hid_driver *hdrv, struct module *owner,
 	hdrv->driver.owner = owner;
 	hdrv->driver.mod_name = mod_name;
 
+	HID_TOUCH_TRACE();
+
 	INIT_LIST_HEAD(&hdrv->dyn_list);
 	spin_lock_init(&hdrv->dyn_lock);
 
@@ -3076,6 +3130,7 @@ EXPORT_SYMBOL_GPL(__hid_register_driver);
 
 void hid_unregister_driver(struct hid_driver *hdrv)
 {
+	HID_TOUCH_TRACE();
 	driver_unregister(&hdrv->driver);
 	hid_free_dynids(hdrv);
 }
@@ -3085,6 +3140,8 @@ int hid_check_keys_pressed(struct hid_device *hid)
 {
 	struct hid_input *hidinput;
 	int i;
+
+	HID_TOUCH_TRACE();
 
 	if (!(hid->claimed & HID_CLAIMED_INPUT))
 		return 0;
@@ -3103,6 +3160,8 @@ EXPORT_SYMBOL_GPL(hid_check_keys_pressed);
 static int __init hid_init(void)
 {
 	int ret;
+
+	HID_TOUCH_TRACE();
 
 	if (hid_debug)
 		pr_warn("hid_debug is now used solely for parser and driver debugging.\n"
@@ -3129,6 +3188,7 @@ err:
 
 static void __exit hid_exit(void)
 {
+	HID_TOUCH_TRACE();
 	hid_debug_exit();
 	hidraw_exit();
 	bus_unregister(&hid_bus_type);
